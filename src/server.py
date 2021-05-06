@@ -2,6 +2,7 @@
 
 import logging
 from flask import Flask, request
+import newspaper
 from newspaper import Article, fulltext, Config, build
 import os
 import json
@@ -29,6 +30,46 @@ def api_top_image():
         return fetch_og_tags(url)
 
     return fetch_by_newspaper(url)
+
+
+@app.route('/collectArticleUrls', methods=['GET'])
+def collect_article_urls():
+    url = request.args.get('url')
+    paper = newspaper.build(url, memoize_articles=False)
+    article_urls = set()
+    for article in paper.articles:
+        article_urls.add(article.url)
+    return json.dumps(list(article_urls)), 200, {'Content-Type': 'application/json'}
+
+
+@app.route('/extractArticles', methods=['GET'])
+def extract_articles():
+    url = request.args.get('url')
+    paper = newspaper.build(url, memoize_articles=False)
+    articles = []
+    article_urls = set()
+    for article in paper.articles:
+        if article.url not in article_urls:
+            article_urls.add(article.url)
+            try:
+                article.download()
+                article.parse()
+            except Exception as e:
+                print("Oops!", e.__class__, "occurred.")
+                print("Next entry.")
+                print()
+                continue
+            articles.append({
+                "url": article.url,
+                "publish_date": article.publish_date.strftime("%Y-%m-%dT%H:%M:%SZ") if article.publish_date else None,
+                "title": article.title,
+                "authors": article.authors,
+                "top_image": article.top_image,
+                "movies": article.movies,
+                "text": article.text
+            })
+
+    return json.dumps(articles), 200, {'Content-Type': 'application/json'}
 
 
 def fetch_by_newspaper(url):
