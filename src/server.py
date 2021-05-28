@@ -32,6 +32,16 @@ def api_top_image():
     return fetch_by_newspaper(url)
 
 
+@app.route('/collectCategoryUrls', methods=['GET'])
+def collect_category_urls():
+    url = request.args.get('url')
+    paper = newspaper.build(url, memoize_articles=False)
+    urls = set()
+    for url in paper.category_urls():
+        urls.add(url)
+    return json.dumps(list(urls)), 200, {'Content-Type': 'application/json'}
+
+
 @app.route('/collectArticleUrls', methods=['GET'])
 def collect_article_urls():
     url = request.args.get('url')
